@@ -26,6 +26,9 @@ def forecast_traffic(data):
     forecast['yhat_lower'] = forecast['yhat_lower'].round(0)
     forecast['yhat_upper'] = forecast['yhat_upper'].round(0)
 
+    # Remove time from the 'ds' column
+    forecast['ds'] = forecast['ds'].dt.strftime('%Y-%m')
+
     return forecast
 
 def convert_df_to_csv(df):
@@ -48,13 +51,16 @@ def main():
         try:
             # Check file type and read data
             if uploaded_file.name.endswith('.csv'):
-                data = pd.read_csv(uploaded_file, index_col=0)
+                data = pd.read_csv(uploaded_file, index_col=0, dtype=str)
             elif uploaded_file.name.endswith('.xlsx'):
-                data = pd.read_excel(uploaded_file, index_col=0)
+                data = pd.read_excel(uploaded_file, index_col=0, dtype=str)
 
-            # Transpose the data for horizontal view
+            # Display the data with original month format
             st.write("### Original Data")
             st.dataframe(data.T, height=200)
+
+            # Convert index to datetime for forecasting
+            data.index = pd.to_datetime(data.index, format='%b-%y')
 
             forecast = forecast_traffic(data)
 
