@@ -28,6 +28,9 @@ def forecast_traffic(data, forecast_period, confidence_interval):
     forecast['yhat_lower'] = forecast['yhat_lower'].round(0)
     forecast['yhat_upper'] = forecast['yhat_upper'].round(0)
 
+    # Format the 'ds' column to exclude time
+    forecast['ds'] = forecast['ds'].dt.strftime('%Y-%m')
+
     return forecast, model
 
 def convert_df_to_csv(df):
