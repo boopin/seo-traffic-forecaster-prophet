@@ -118,15 +118,17 @@ def main():
                 data = data.apply(pd.to_numeric, errors='coerce')
                 data.dropna(inplace=True)
 
+                # Reset index and create a dataframe with proper columns
+                data = data.reset_index()
+                data.columns = ['ds', 'y']
+                data['ds'] = pd.to_datetime(data['ds'], format='%b-%y')
+
                 # Display the data with original month format
                 st.write("### Original Data")
-                st.dataframe(data.T, height=200)
-
-                # Convert index to datetime for forecasting
-                data.index = pd.to_datetime(data.index, format='%b-%y')
+                st.dataframe(data, height=200)
 
                 # Detect anomalies in historical data
-                anomalies = detect_anomalies(data.reset_index().rename(columns={'index': 'ds', 0: 'y'}))
+                anomalies = detect_anomalies(data)
                 if not anomalies.empty:
                     st.write("### Anomalies in Historical Data")
                     st.dataframe(anomalies)
@@ -139,7 +141,7 @@ def main():
                 st.write("### Select Confidence Interval")
                 confidence_interval = st.slider("Choose the confidence interval (%):", min_value=50, max_value=99, value=80)
 
-                forecast, model = forecast_traffic(data, forecast_period, confidence_interval)
+                forecast, model = forecast_traffic(data.set_index('ds'), forecast_period, confidence_interval)
 
                 # Display forecast data
                 st.write(f"### Forecasted SEO Traffic for Next {forecast_period} Months")
