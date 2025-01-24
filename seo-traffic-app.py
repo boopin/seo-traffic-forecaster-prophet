@@ -55,8 +55,9 @@ def main():
             elif uploaded_file.name.endswith('.xlsx'):
                 data = pd.read_excel(uploaded_file, index_col=0, dtype=str)
 
-            # Remove empty rows from the data
+            # Remove empty rows and rows with all zero traffic values
             data.dropna(how='all', inplace=True)
+            data = data[(data != '0').all(axis=1)]
 
             # Display the data with original month format
             st.write("### Original Data")
@@ -74,7 +75,7 @@ def main():
             # Display forecast data
             st.write(f"### Forecasted SEO Traffic for Next {forecast_period} Months")
             forecast_table = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
-            forecast_table.columns = ['Date', 'Forecasted Traffic', 'Lower Bound', 'Upper Bound']
+            forecast_table.columns = ['Date', 'Forecasted Traffic', 'Minimum Traffic', 'Maximum Traffic']
             st.dataframe(forecast_table, height=300)
 
             # Provide download option for forecast data
