@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objs as go
+import matplotlib.pyplot as plt
 from prophet import Prophet
 import io
 
@@ -47,52 +47,31 @@ def forecast_traffic(df, forecast_periods=12):
     return model, forecast
 
 def plot_forecast(forecast):
-    fig = go.Figure()
+    plt.figure(figsize=(12, 6))
     
     # Historical data
-    fig.add_trace(go.Scatter(
-        x=forecast['ds'], 
-        y=forecast['y'], 
-        mode='lines', 
-        name='Historical Traffic'
-    ))
+    plt.plot(forecast['ds'][:-12], forecast['y'], label='Historical Traffic')
     
     # Forecast
-    fig.add_trace(go.Scatter(
-        x=forecast['ds'][-12:], 
-        y=forecast['yhat'][-12:], 
-        mode='lines', 
-        name='Forecast',
-        line=dict(color='red', dash='dot')
-    ))
+    plt.plot(forecast['ds'][-12:], forecast['yhat'][-12:], 'r--', label='Forecast')
     
     # Confidence Interval
-    fig.add_trace(go.Scatter(
-        x=forecast['ds'][-12:],
-        y=forecast['yhat_upper'][-12:],
-        mode='lines',
-        name='Upper Bound',
-        line=dict(width=0),
-        showlegend=True
-    ))
-    
-    fig.add_trace(go.Scatter(
-        x=forecast['ds'][-12:],
-        y=forecast['yhat_lower'][-12:],
-        mode='lines',
-        name='Lower Bound',
-        fill='tonexty',
-        line=dict(width=0),
-        showlegend=True
-    ))
-    
-    fig.update_layout(
-        title='SEO Traffic Forecast',
-        xaxis_title='Date',
-        yaxis_title='Traffic'
+    plt.fill_between(
+        forecast['ds'][-12:], 
+        forecast['yhat_lower'][-12:], 
+        forecast['yhat_upper'][-12:], 
+        color='red', 
+        alpha=0.1
     )
     
-    return fig
+    plt.title('SEO Traffic Forecast')
+    plt.xlabel('Date')
+    plt.ylabel('Traffic')
+    plt.legend()
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    
+    return plt
 
 def main():
     st.set_page_config(page_title='SEO Traffic Forecast', layout='wide')
@@ -116,7 +95,7 @@ def main():
             
             st.subheader('Forecast Visualization')
             fig = plot_forecast(forecast)
-            st.plotly_chart(fig, use_container_width=True)
+            st.pyplot(fig)
             
             st.subheader('Forecast Data')
             forecast_df = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']][-forecast_months:]
