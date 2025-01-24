@@ -2,32 +2,46 @@ import streamlit as st
 import pandas as pd
 from prophet import Prophet
 
-def load_data(uploaded_file):
-    try:
-        df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
-        df['ds'] = pd.to_datetime(df.iloc[:, 0])
-        df['y'] = df.iloc[:, 1]
-        return df[['ds', 'y']].sort_values('ds')
-    except Exception as e:
-        st.error(f"Error: {e}")
-        return None
+def forecast_seo_traffic(data):
+    # Prepare data for Prophet
+    df = pd.DataFrame({
+        'ds': pd.to_datetime(data.iloc[:, 0]),
+        'y': data.iloc[:, 1]
+    })
+    
+    # Fit Prophet model
+    model = Prophet()
+    model.fit(df)
+    
+    # Generate future forecast
+    future = model.make_future_dataframe(periods=6, freq='M')
+    forecast = model.predict(future)
+    
+    return forecast
 
 def main():
-    st.title('SEO Traffic Forecast')
+    st.title('SEO Traffic Forecaster')
     
-    uploaded_file = st.file_uploader("Upload Data", type=['csv', 'xlsx'])
+    uploaded_file = st.file_uploader("Upload Traffic Data", type=['csv', 'xlsx'])
     
     if uploaded_file:
-        df = load_data(uploaded_file)
-        
-        if df is not None:
-            model = Prophet()
-            model.fit(df)
+        try:
+            # Read file based on extension
+            data = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
             
-            future = model.make_future_dataframe(periods=6, freq='M')
-            forecast = model.predict(future)
+            # Display original data
+            st.subheader('Original Data')
+            st.dataframe(data)
             
+            # Forecast
+            forecast = forecast_seo_traffic(data)
+            
+            # Display forecast results
+            st.subheader('Traffic Forecast')
             st.dataframe(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']][-6:])
+        
+        except Exception as e:
+            st.error(f"Error processing file: {e}")
 
 if __name__ == "__main__":
     main()
