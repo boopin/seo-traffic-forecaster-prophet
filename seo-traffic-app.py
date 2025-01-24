@@ -14,7 +14,11 @@ def forecast_traffic(data):
     model = Prophet()
     model.fit(df)
 
+    # Adjust future dataframe to exclude redundant forecasting for existing months
+    last_date = df['ds'].max()
     future = model.make_future_dataframe(periods=6, freq='M')
+    future = future[future['ds'] > last_date]
+
     forecast = model.predict(future)
 
     # Round forecast values to integers and return
@@ -48,14 +52,15 @@ def main():
             elif uploaded_file.name.endswith('.xlsx'):
                 data = pd.read_excel(uploaded_file, index_col=0)
 
+            # Transpose the data for horizontal view
             st.write("### Original Data")
-            st.dataframe(data, height=300)
+            st.dataframe(data.T, height=200)
 
             forecast = forecast_traffic(data)
 
             # Display forecast data
             st.write("### Forecasted SEO Traffic for Next 6 Months")
-            forecast_table = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']][-6:]
+            forecast_table = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
             forecast_table.columns = ['Date', 'Forecasted Traffic', 'Lower Bound', 'Upper Bound']
             st.dataframe(forecast_table, height=300)
 
