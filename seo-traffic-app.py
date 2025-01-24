@@ -4,6 +4,7 @@ from prophet import Prophet
 from io import BytesIO
 from prophet.plot import plot_components_plotly
 import plotly.graph_objects as go
+import numpy as np
 
 def forecast_traffic(data, forecast_period, confidence_interval):
     # Convert month-year format to datetime
@@ -32,6 +33,19 @@ def forecast_traffic(data, forecast_period, confidence_interval):
     forecast['yhat_upper'] = forecast['yhat_upper'].round(0)
 
     return forecast, model
+
+def detect_anomalies(data):
+    # Detect anomalies using z-score
+    data['z_score'] = (data['y'] - data['y'].mean()) / data['y'].std()
+    anomalies = data[np.abs(data['z_score']) > 2]
+    return anomalies[['ds', 'y', 'z_score']]
+
+def calculate_accuracy_metrics(actual, predicted):
+    # Calculate MAPE, RMSE, and MAE
+    mape = np.mean(np.abs((actual - predicted) / actual)) * 100
+    rmse = np.sqrt(np.mean((actual - predicted) ** 2))
+    mae = np.mean(np.abs(actual - predicted))
+    return mape, rmse, mae
 
 def convert_df_to_csv(df):
     # Convert dataframe to CSV for download
@@ -71,11 +85,15 @@ def custom_seasonal_plot(model, forecast):
 
     return fig
 
+def generate_insights(forecast):
+    growth_rate = (forecast['yhat'].iloc[-1] - forecast['yhat'].iloc[0]) / forecast['yhat'].iloc[0] * 100
+    return f"The forecast predicts a {growth_rate:.2f}% change in traffic over the selected period."
+
 def main():
     st.set_page_config(page_title="ForecastEdge: SEO Traffic Planner", layout="wide")
 
     st.title('ForecastEdge: SEO Traffic Planner')
-    st.subheader('Version 1.3')
+    st.subheader('Version 1.4')
 
     st.write("Upload your SEO organic traffic data (CSV or XLSX) containing Month and Traffic columns to forecast future traffic.")
 
@@ -107,6 +125,12 @@ def main():
                 # Convert index to datetime for forecasting
                 data.index = pd.to_datetime(data.index, format='%b-%y')
 
+                # Detect anomalies in historical data
+                anomalies = detect_anomalies(data.reset_index().rename(columns={'index': 'ds', 0: 'y'}))
+                if not anomalies.empty:
+                    st.write("### Anomalies in Historical Data")
+                    st.dataframe(anomalies)
+
                 # Forecast period selection
                 st.write("### Select Forecast Period")
                 forecast_period = st.radio("Choose the forecast duration:", options=[6, 12], index=0)
@@ -129,6 +153,20 @@ def main():
                                    data=csv_data,
                                    file_name='seo_traffic_forecast.csv',
                                    mime='text/csv')
+
+                # Calculate and display accuracy metrics
+                actuals = data['y']
+                predictions = forecast['yhat'][:len(actuals)]
+                mape, rmse, mae = calculate_accuracy_metrics(actuals, predictions)
+                st.write("### Forecast Accuracy Metrics")
+                st.write(f"- MAPE: {mape:.2f}%")
+                st.write(f"- RMSE: {rmse:.2f}")
+                st.write(f"- MAE: {mae:.2f}")
+
+                # Generate and display insights
+                insights = generate_insights(forecast)
+                st.write("### Insights")
+                st.write(insights)
 
                 # Visualization enhancements
                 st.write("### Seasonal Decomposition of Forecast")
