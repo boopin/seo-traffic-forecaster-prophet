@@ -32,6 +32,8 @@ def convert_df_to_csv(df):
     return processed_data
 
 def main():
+    st.set_page_config(page_title="SEO Traffic Forecast App", layout="wide")
+
     st.title('SEO Traffic Forecast App')
     st.subheader('Version 1.0')
     st.write("Upload your SEO organic traffic data (CSV or XLSX) containing Month and Traffic columns to forecast future traffic.")
@@ -47,7 +49,7 @@ def main():
                 data = pd.read_excel(uploaded_file, index_col=0)
 
             st.write("### Original Data")
-            st.dataframe(data)
+            st.dataframe(data, height=300)
 
             forecast = forecast_traffic(data)
 
@@ -55,7 +57,7 @@ def main():
             st.write("### Forecasted SEO Traffic for Next 6 Months")
             forecast_table = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']][-6:]
             forecast_table.columns = ['Date', 'Forecasted Traffic', 'Lower Bound', 'Upper Bound']
-            st.dataframe(forecast_table)
+            st.dataframe(forecast_table, height=300)
 
             # Provide download option for forecast data
             csv_data = convert_df_to_csv(forecast_table)
