@@ -43,9 +43,6 @@ def main():
     st.title('ForecastEdge: SEO Traffic Planner')
     st.subheader('Version 1.3')
 
-    # Add an image or logo at the top
-    st.image("https://via.placeholder.com/800x150?text=ForecastEdge+SEO+Traffic+Planner", use_column_width=True)
-
     st.write("Upload your SEO organic traffic data (CSV or XLSX) containing Month and Traffic columns to forecast future traffic.")
 
     menu = st.sidebar.selectbox("Navigation", options=["Forecast Tool", "Documentation"])
