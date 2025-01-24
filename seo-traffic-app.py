@@ -2,46 +2,39 @@ import streamlit as st
 import pandas as pd
 from prophet import Prophet
 
-def forecast_seo_traffic(data):
-    # Prepare data for Prophet
+def forecast_traffic(data):
     df = pd.DataFrame({
-        'ds': pd.to_datetime(data.iloc[:, 0]),
-        'y': data.iloc[:, 1]
+        'ds': pd.date_range(start=data.index[0], periods=len(data), freq='M'),
+        'y': data.values
     })
     
-    # Fit Prophet model
     model = Prophet()
     model.fit(df)
     
-    # Generate future forecast
     future = model.make_future_dataframe(periods=6, freq='M')
     forecast = model.predict(future)
     
     return forecast
 
 def main():
-    st.title('SEO Traffic Forecaster')
+    st.title('SEO Traffic Forecast')
     
-    uploaded_file = st.file_uploader("Upload Traffic Data", type=['csv', 'xlsx'])
+    uploaded_file = st.file_uploader("Upload CSV", type=['csv'])
     
     if uploaded_file:
         try:
-            # Read file based on extension
-            data = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
+            data = pd.read_csv(uploaded_file, index_col=0, parse_dates=True)
             
-            # Display original data
-            st.subheader('Original Data')
+            st.write("Original Data:")
             st.dataframe(data)
             
-            # Forecast
-            forecast = forecast_seo_traffic(data)
+            forecast = forecast_traffic(data)
             
-            # Display forecast results
-            st.subheader('Traffic Forecast')
+            st.write("Forecast:")
             st.dataframe(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']][-6:])
         
         except Exception as e:
-            st.error(f"Error processing file: {e}")
+            st.error(f"Error: {e}")
 
 if __name__ == "__main__":
     main()
