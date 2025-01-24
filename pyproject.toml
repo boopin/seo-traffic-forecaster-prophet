@@ -1,0 +1,16 @@
+[
+tool.poetry
+]
+name = "seo-traffic-forecaster"
+version = "0.1.0"
+description = "SEO Traffic Forecasting Tool"
+
+[
+tool.poetry.dependencies
+]
+python = "^3.9"
+streamlit = "^1.29.0"
+pandas = "^2.2.0"
+prophet = "^1.1.5"
+matplotlib = "^3.7.1"
+openpyxl = "^3.1.2"
