@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 from prophet import Prophet
 from io import BytesIO
+from prophet.plot import plot_components_plotly
 
-def forecast_traffic(data, forecast_period):
+def forecast_traffic(data, forecast_period, confidence_interval):
     # Convert month-year format to datetime
     data.index = pd.to_datetime(data.index, format='%b-%y')
 
@@ -11,7 +12,7 @@ def forecast_traffic(data, forecast_period):
     df = data.reset_index()
     df.columns = ['ds', 'y']
 
-    model = Prophet()
+    model = Prophet(interval_width=confidence_interval / 100)
     model.fit(df)
 
     # Adjust future dataframe to exclude redundant forecasting for existing months
@@ -29,7 +30,7 @@ def forecast_traffic(data, forecast_period):
     # Remove time from the 'ds' column
     forecast['ds'] = forecast['ds'].dt.strftime('%Y-%m')
 
-    return forecast
+    return forecast, model
 
 def convert_df_to_csv(df):
     # Convert dataframe to CSV for download
@@ -42,7 +43,7 @@ def main():
     st.set_page_config(page_title="SEO Traffic Forecast App", layout="wide")
 
     st.title('SEO Traffic Forecast App')
-    st.subheader('Version 1.1')
+    st.subheader('Version 1.2')
     st.write("Upload your SEO organic traffic data (CSV or XLSX) containing Month and Traffic columns to forecast future traffic.")
 
     uploaded_file = st.file_uploader("Upload your file (CSV or XLSX)", type=['csv', 'xlsx'])
@@ -70,12 +71,16 @@ def main():
             st.write("### Select Forecast Period")
             forecast_period = st.radio("Choose the forecast duration:", options=[6, 12], index=0)
 
-            forecast = forecast_traffic(data, forecast_period)
+            # Confidence interval selection
+            st.write("### Select Confidence Interval")
+            confidence_interval = st.slider("Choose the confidence interval (%):", min_value=50, max_value=99, value=80)
+
+            forecast, model = forecast_traffic(data, forecast_period, confidence_interval)
 
             # Display forecast data
             st.write(f"### Forecasted SEO Traffic for Next {forecast_period} Months")
             forecast_table = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
-            forecast_table.columns = ['Date', 'Forecasted Traffic', 'Minimum Traffic', 'Maximum Traffic']
+            forecast_table.columns = ['Date', 'Forecasted Traffic', 'Optimistic Scenario', 'Pessimistic Scenario']
             st.dataframe(forecast_table, height=300)
 
             # Provide download option for forecast data
@@ -84,6 +89,11 @@ def main():
                                data=csv_data,
                                file_name='seo_traffic_forecast.csv',
                                mime='text/csv')
+
+            # Visualization enhancements
+            st.write("### Seasonal Decomposition of Forecast")
+            seasonal_plot = plot_components_plotly(model, forecast)
+            st.plotly_chart(seasonal_plot, use_container_width=True)
 
         except Exception as e:
             st.error(f"Error: {e}")
