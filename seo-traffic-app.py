@@ -118,8 +118,10 @@ def main():
                 data = data.apply(pd.to_numeric, errors='coerce')
                 data.dropna(inplace=True)
 
-                # Reset index and create a dataframe with proper columns
+                # Reset index and validate columns before renaming
                 data = data.reset_index()
+                if data.shape[1] != 2:
+                    raise ValueError("Uploaded data must have exactly two columns: Month and Traffic.")
                 data.columns = ['ds', 'y']
                 data['ds'] = pd.to_datetime(data['ds'], format='%b-%y')
 
