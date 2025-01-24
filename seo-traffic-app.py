@@ -5,16 +5,14 @@ from prophet import Prophet
 def forecast_traffic(data):
     df = pd.DataFrame({
         'ds': pd.date_range(start=data.index[0], periods=len(data), freq='M'),
-        'y': data.values
+        'y': data.values.flatten()
     })
     
     model = Prophet()
     model.fit(df)
     
     future = model.make_future_dataframe(periods=6, freq='M')
-    forecast = model.predict(future)
-    
-    return forecast
+    return model.predict(future)
 
 def main():
     st.title('SEO Traffic Forecast')
@@ -23,7 +21,7 @@ def main():
     
     if uploaded_file:
         try:
-            data = pd.read_csv(uploaded_file, index_col=0, parse_dates=True)
+            data = pd.read_csv(uploaded_file, index_col=0)
             
             st.write("Original Data:")
             st.dataframe(data)
