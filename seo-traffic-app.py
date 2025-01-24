@@ -3,10 +3,12 @@ import pandas as pd
 from prophet import Prophet
 
 def forecast_traffic(data):
-    df = pd.DataFrame({
-        'ds': pd.date_range(start=data.index[0], periods=len(data), freq='M'),
-        'y': data.values.flatten()
-    })
+    # Convert month-year format to datetime
+    data.index = pd.to_datetime(data.index, format='%b-%y')
+    
+    # Reset index and create Prophet-compatible dataframe
+    df = data.reset_index()
+    df.columns = ['ds', 'y']
     
     model = Prophet()
     model.fit(df)
@@ -21,6 +23,7 @@ def main():
     
     if uploaded_file:
         try:
+            # Read CSV with first column as index
             data = pd.read_csv(uploaded_file, index_col=0)
             
             st.write("Original Data:")
