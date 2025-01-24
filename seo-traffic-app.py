@@ -40,6 +40,37 @@ def convert_df_to_csv(df):
     processed_data = output.getvalue()
     return processed_data
 
+def custom_seasonal_plot(model, forecast):
+    # Create a customized seasonal decomposition plot
+    components = model.plot_components(forecast, figsize=(10, 8))
+
+    fig = go.Figure()
+
+    # Trend
+    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['trend'],
+                             mode='lines', name='Trend',
+                             line=dict(color='blue', width=3)))
+
+    # Seasonalities (yearly, weekly)
+    if 'yearly' in forecast.columns:
+        fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yearly'],
+                                 mode='lines', name='Yearly Seasonality',
+                                 line=dict(color='green', dash='dash')))
+
+    if 'weekly' in forecast.columns:
+        fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['weekly'],
+                                 mode='lines', name='Weekly Seasonality',
+                                 line=dict(color='orange', dash='dot')))
+
+    # Layout adjustments
+    fig.update_layout(title='Seasonal Decomposition of Forecast',
+                      xaxis_title='Date',
+                      yaxis_title='Values',
+                      template='plotly_white',
+                      legend=dict(orientation='h', yanchor='bottom', xanchor='center', x=0.5))
+
+    return fig
+
 def main():
     st.set_page_config(page_title="ForecastEdge: SEO Traffic Planner", layout="wide")
 
@@ -101,8 +132,8 @@ def main():
 
                 # Visualization enhancements
                 st.write("### Seasonal Decomposition of Forecast")
-                seasonal_plot = plot_components_plotly(model, forecast)
-                st.plotly_chart(seasonal_plot, use_container_width=True)
+                seasonal_fig = custom_seasonal_plot(model, forecast)
+                st.plotly_chart(seasonal_fig, use_container_width=True)
 
             except Exception as e:
                 st.error(f"Error: {e}")
