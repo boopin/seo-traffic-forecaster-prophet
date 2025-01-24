@@ -120,8 +120,11 @@ def main():
 
                 # Reset index and validate columns before renaming
                 data = data.reset_index()
-                if data.shape[1] != 2:
-                    raise ValueError("Uploaded data must have exactly two columns: Month and Traffic.")
+                if data.shape[1] < 2:
+                    raise ValueError("Uploaded data must have at least two columns: Month and Traffic.")
+                if data.shape[1] > 2:
+                    st.warning("Extra columns detected. Only the first two columns will be used.")
+                data = data.iloc[:, :2]  # Use only the first two columns
                 data.columns = ['ds', 'y']
                 data['ds'] = pd.to_datetime(data['ds'], format='%b-%y')
 
