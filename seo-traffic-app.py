@@ -9,6 +9,9 @@ def forecast_traffic(data, forecast_period, confidence_interval):
     # Convert month-year format to datetime
     data.index = pd.to_datetime(data.index, format='%b-%y')
 
+    # Ensure the traffic column is numeric
+    data = data.astype(float)
+
     # Reset index and create Prophet-compatible dataframe
     df = data.reset_index()
     df.columns = ['ds', 'y']
@@ -64,6 +67,10 @@ def main():
                 # Remove empty rows and rows with all zero traffic values
                 data.dropna(how='all', inplace=True)
                 data = data[(data != '0').all(axis=1)]
+
+                # Ensure traffic values are numeric
+                data = data.apply(pd.to_numeric, errors='coerce')
+                data.dropna(inplace=True)
 
                 # Display the data with original month format
                 st.write("### Original Data")
