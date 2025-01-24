@@ -3,7 +3,7 @@ import pandas as pd
 from prophet import Prophet
 from io import BytesIO
 
-def forecast_traffic(data):
+def forecast_traffic(data, forecast_period):
     # Convert month-year format to datetime
     data.index = pd.to_datetime(data.index, format='%b-%y')
 
@@ -16,7 +16,7 @@ def forecast_traffic(data):
 
     # Adjust future dataframe to exclude redundant forecasting for existing months
     last_date = df['ds'].max()
-    future = model.make_future_dataframe(periods=6, freq='M')
+    future = model.make_future_dataframe(periods=forecast_period, freq='M')
     future = future[future['ds'] > last_date]
 
     forecast = model.predict(future)
@@ -42,7 +42,7 @@ def main():
     st.set_page_config(page_title="SEO Traffic Forecast App", layout="wide")
 
     st.title('SEO Traffic Forecast App')
-    st.subheader('Version 1.0')
+    st.subheader('Version 1.1')
     st.write("Upload your SEO organic traffic data (CSV or XLSX) containing Month and Traffic columns to forecast future traffic.")
 
     uploaded_file = st.file_uploader("Upload your file (CSV or XLSX)", type=['csv', 'xlsx'])
@@ -55,6 +55,9 @@ def main():
             elif uploaded_file.name.endswith('.xlsx'):
                 data = pd.read_excel(uploaded_file, index_col=0, dtype=str)
 
+            # Remove empty rows from the data
+            data.dropna(how='all', inplace=True)
+
             # Display the data with original month format
             st.write("### Original Data")
             st.dataframe(data.T, height=200)
@@ -62,10 +65,14 @@ def main():
             # Convert index to datetime for forecasting
             data.index = pd.to_datetime(data.index, format='%b-%y')
 
-            forecast = forecast_traffic(data)
+            # Forecast period selection
+            st.write("### Select Forecast Period")
+            forecast_period = st.radio("Choose the forecast duration:", options=[6, 12], index=0)
+
+            forecast = forecast_traffic(data, forecast_period)
 
             # Display forecast data
-            st.write("### Forecasted SEO Traffic for Next 6 Months")
+            st.write(f"### Forecasted SEO Traffic for Next {forecast_period} Months")
             forecast_table = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
             forecast_table.columns = ['Date', 'Forecasted Traffic', 'Lower Bound', 'Upper Bound']
             st.dataframe(forecast_table, height=300)
