@@ -31,9 +31,6 @@ def forecast_traffic(data, forecast_period, confidence_interval):
     forecast['yhat_lower'] = forecast['yhat_lower'].round(0)
     forecast['yhat_upper'] = forecast['yhat_upper'].round(0)
 
-    # Format the 'ds' column to exclude time
-    forecast['ds'] = forecast['ds'].dt.strftime('%Y-%m')
-
     return forecast, model
 
 def convert_df_to_csv(df):
@@ -104,6 +101,7 @@ def main():
 
                 # Visualization enhancements
                 st.write("### Seasonal Decomposition of Forecast")
+                forecast['y'] = pd.to_numeric(forecast['y'], errors='coerce')
                 seasonal_plot = plot_components_plotly(model, forecast)
                 st.plotly_chart(seasonal_plot, use_container_width=True)
 
