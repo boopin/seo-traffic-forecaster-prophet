@@ -3,6 +3,7 @@ import pandas as pd
 from prophet import Prophet
 from io import BytesIO
 from prophet.plot import plot_components_plotly
+import plotly.graph_objects as go
 
 def forecast_traffic(data, forecast_period, confidence_interval):
     # Convert month-year format to datetime
