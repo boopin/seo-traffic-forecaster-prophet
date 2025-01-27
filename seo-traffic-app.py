@@ -1,22 +1,8 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 from prophet import Prophet
 from io import BytesIO
 import plotly.graph_objects as go
-
-def calculate_yoy_growth(data):
-    """Calculate year-over-year growth for each month"""
-    # Convert index to datetime if it's not already
-    data.index = pd.to_datetime(data.index, format='%b-%y')
-    
-    # Sort by date
-    data = data.sort_index()
-    
-    # Calculate YoY growth
-    yoy_growth = data.pct_change(periods=12) * 100
-    
-    return yoy_growth
 
 def forecast_traffic(data, forecast_period, confidence_interval):
     df = pd.DataFrame({
@@ -31,14 +17,6 @@ def forecast_traffic(data, forecast_period, confidence_interval):
     forecast = model.predict(future)
     
     forecast[['yhat', 'yhat_lower', 'yhat_upper']] = forecast[['yhat', 'yhat_lower', 'yhat_upper']].round(0)
-    
-    # Calculate YoY growth for forecasted values
-    forecast['yoy_growth'] = np.nan
-    forecast_df = pd.DataFrame({'traffic': forecast['yhat'], 
-                              'date': forecast['ds']}).set_index('date')
-    forecast_df = forecast_df.pct_change(periods=12) * 100
-    forecast['yoy_growth'] = forecast_df['traffic'].values
-    
     return forecast, model
 
 def plot_forecast(model, forecast):
@@ -66,16 +44,14 @@ def plot_forecast(model, forecast):
         hoverinfo='skip'
     ))
     
-    # Add main forecast line with YoY growth in hover
+    # Add main forecast line
     fig.add_trace(go.Scatter(
         x=forecast['ds'],
         y=forecast['yhat'],
         name='Expected Traffic',
         line=dict(color='rgb(0,100,255)', width=3),
         hovertemplate='<b>Date</b>: %{x|%B %Y}<br>' +
-                      '<b>Expected Traffic</b>: %{y:,.0f}<br>' +
-                      '<b>YoY Growth</b>: %{customdata:.1f}%<br><extra></extra>',
-        customdata=forecast['yoy_growth']
+                      '<b>Expected Traffic</b>: %{y:,.0f}<br><extra></extra>'
     ))
     
     # Add upper and lower bounds with custom hover
@@ -97,6 +73,7 @@ def plot_forecast(model, forecast):
                       '<b>Conservative</b>: %{y:,.0f}<br><extra></extra>'
     ))
     
+    # Update layout with better styling
     fig.update_layout(
         title={
             'text': 'Traffic Forecast',
@@ -155,17 +132,10 @@ def main():
                 # Read and process the uploaded data
                 data = pd.read_csv(uploaded_file, index_col=0)
                 
-                # Calculate YoY growth for historical data
-                yoy_growth = calculate_yoy_growth(data.copy())
-                
-                # Combine traffic and YoY growth for display
-                displayed_data = pd.DataFrame({
-                    'Traffic': data.iloc[:, 0],
-                    'YoY Growth (%)': yoy_growth.iloc[:, 0].round(1)
-                }).T
-                
+                # Transform the data for horizontal display
+                displayed_data = data.T  # Transpose the dataframe
                 st.write("Historical Traffic Data")
-                st.dataframe(displayed_data, height=150)
+                st.dataframe(displayed_data, height=150)  # Set fixed height for better display
                 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -176,12 +146,11 @@ def main():
                 forecast, model = forecast_traffic(data, forecast_period, confidence_interval)
                 
                 st.subheader("Forecast Results")
-                results = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper', 'yoy_growth']][-forecast_period:]
+                results = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']][-forecast_period:]
                 
                 # Format the date without time
                 results['ds'] = pd.to_datetime(results['ds']).dt.strftime('%Y-%m')
-                results.columns = ['Date', 'Expected Traffic', 'Conservative Estimate', 'Best Case Scenario', 'YoY Growth (%)']
-                results['YoY Growth (%)'] = results['YoY Growth (%)'].round(1)
+                results.columns = ['Date', 'Expected Traffic', 'Conservative Estimate', 'Best Case Scenario']
                 
                 # Display results in a clean format
                 st.dataframe(results.set_index('Date'))
@@ -202,8 +171,6 @@ def main():
         2. Select forecast period
         3. Adjust prediction accuracy
         4. Download results
-        
-        Note: YoY Growth shows the percentage change compared to the same month in the previous year.
         """)
 
 if __name__ == "__main__":
