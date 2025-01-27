@@ -2,167 +2,176 @@ import streamlit as st
 import pandas as pd
 from prophet import Prophet
 from io import BytesIO
-from prophet.plot import plot_components_plotly
 import plotly.graph_objects as go
 
 def forecast_traffic(data, forecast_period, confidence_interval):
-    # Convert month-year format to datetime
-    data.index = pd.to_datetime(data.index, format='%b-%y')
-
-    # Ensure the traffic column is numeric
-    data = data.astype(float)
-
-    # Reset index and create Prophet-compatible dataframe
-    df = data.reset_index()
-    df.columns = ['ds', 'y']
-
-    model = Prophet(interval_width=confidence_interval / 100)
+    df = pd.DataFrame({
+        'ds': pd.to_datetime(data.index, format='%b-%y'),
+        'y': data.values.flatten()
+    })
+    
+    model = Prophet(interval_width=confidence_interval/100)
     model.fit(df)
-
-    # Adjust future dataframe to exclude redundant forecasting for existing months
-    last_date = df['ds'].max()
+    
     future = model.make_future_dataframe(periods=forecast_period, freq='M')
-    future = future[future['ds'] > last_date]
-
     forecast = model.predict(future)
-
-    # Round forecast values to integers and return
-    forecast['yhat'] = forecast['yhat'].round(0)
-    forecast['yhat_lower'] = forecast['yhat_lower'].round(0)
-    forecast['yhat_upper'] = forecast['yhat_upper'].round(0)
-
+    
+    forecast[['yhat', 'yhat_lower', 'yhat_upper']] = forecast[['yhat', 'yhat_lower', 'yhat_upper']].round(0)
     return forecast, model
 
-def convert_df_to_csv(df):
-    # Convert dataframe to CSV for download
-    output = BytesIO()
-    df.to_csv(output, index=False)
-    processed_data = output.getvalue()
-    return processed_data
-
-def custom_seasonal_plot(model, forecast):
-    # Create a customized seasonal decomposition plot
-    components = model.plot_components(forecast, figsize=(10, 8))
-
+def plot_forecast(model, forecast):
     fig = go.Figure()
-
-    # Trend
-    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['trend'],
-                             mode='lines', name='Trend',
-                             line=dict(color='blue', width=3)))
-
-    # Seasonalities (yearly, weekly)
-    if 'yearly' in forecast.columns:
-        fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yearly'],
-                                 mode='lines', name='Yearly Seasonality',
-                                 line=dict(color='green', dash='dash')))
-
-    if 'weekly' in forecast.columns:
-        fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['weekly'],
-                                 mode='lines', name='Weekly Seasonality',
-                                 line=dict(color='orange', dash='dot')))
-
-    # Layout adjustments
-    fig.update_layout(title='Seasonal Decomposition of Forecast',
-                      xaxis_title='Date',
-                      yaxis_title='Values',
-                      template='plotly_white',
-                      legend=dict(orientation='h', yanchor='bottom', xanchor='center', x=0.5))
-
+    
+    # Add filled area between Conservative and Best Case
+    fig.add_trace(go.Scatter(
+        x=forecast['ds'],
+        y=forecast['yhat_upper'],
+        fill=None,
+        mode='lines',
+        line_color='rgba(0,100,255,0)',
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=forecast['ds'],
+        y=forecast['yhat_lower'],
+        fill='tonexty',
+        mode='lines',
+        line_color='rgba(0,100,255,0)',
+        fillcolor='rgba(0,100,255,0.1)',
+        name='Prediction Range',
+        hoverinfo='skip'
+    ))
+    
+    # Add main forecast line
+    fig.add_trace(go.Scatter(
+        x=forecast['ds'],
+        y=forecast['yhat'],
+        name='Expected Traffic',
+        line=dict(color='rgb(0,100,255)', width=3),
+        hovertemplate='<b>Date</b>: %{x|%B %Y}<br>' +
+                      '<b>Expected Traffic</b>: %{y:,.0f}<br><extra></extra>'
+    ))
+    
+    # Add upper and lower bounds with custom hover
+    fig.add_trace(go.Scatter(
+        x=forecast['ds'],
+        y=forecast['yhat_upper'],
+        name='Best Case Scenario',
+        line=dict(color='rgba(0,100,255,0.5)', dash='dash'),
+        hovertemplate='<b>Date</b>: %{x|%B %Y}<br>' +
+                      '<b>Best Case</b>: %{y:,.0f}<br><extra></extra>'
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=forecast['ds'],
+        y=forecast['yhat_lower'],
+        name='Conservative Estimate',
+        line=dict(color='rgba(0,100,255,0.5)', dash='dash'),
+        hovertemplate='<b>Date</b>: %{x|%B %Y}<br>' +
+                      '<b>Conservative</b>: %{y:,.0f}<br><extra></extra>'
+    ))
+    
+    # Update layout with better styling
+    fig.update_layout(
+        title={
+            'text': 'Traffic Forecast',
+            'y':0.95,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top',
+            'font': dict(size=24)
+        },
+        xaxis_title='Date',
+        yaxis_title='Traffic',
+        hovermode='x unified',
+        plot_bgcolor='white',
+        xaxis=dict(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='rgba(128,128,128,0.2)',
+            zeroline=False
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='rgba(128,128,128,0.2)',
+            zeroline=False
+        ),
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01,
+            bgcolor='rgba(255,255,255,0.8)'
+        )
+    )
+    
     return fig
 
 def main():
-    st.set_page_config(page_title="ForecastEdge: SEO Traffic Planner", layout="wide")
-
-    st.title('ForecastEdge: SEO Traffic Planner')
-    st.subheader('Version 1.3')
-
-    st.write("Upload your SEO organic traffic data (CSV or XLSX) containing Month and Traffic columns to forecast future traffic.")
-
-    menu = st.sidebar.selectbox("Navigation", options=["Forecast Tool", "Documentation"])
-
-    if menu == "Forecast Tool":
-        uploaded_file = st.file_uploader("Upload your file (CSV or XLSX)", type=['csv', 'xlsx'])
-
+    st.set_page_config(page_title="ForecastEdge", layout="wide")
+    
+    st.markdown("""
+    <div style='background-color:#f0f2f6;padding:20px;border-radius:10px;margin-bottom:20px;'>
+        <h1 style='text-align:center;color:#2c3e50;'>🚀 ForecastEdge</h1>
+        <p style='text-align:center;color:#34495e;font-size:1.2em;margin-top:10px;'>
+            Advanced SEO Traffic Forecasting Tool powered by Machine Learning
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    menu = st.sidebar.radio("Menu", ["Forecast", "Documentation"])
+    
+    if menu == "Forecast":
+        uploaded_file = st.file_uploader("Upload CSV", type=['csv'])
+        
         if uploaded_file:
             try:
-                # Check file type and read data
-                if uploaded_file.name.endswith('.csv'):
-                    data = pd.read_csv(uploaded_file, index_col=0, dtype=str)
-                elif uploaded_file.name.endswith('.xlsx'):
-                    data = pd.read_excel(uploaded_file, index_col=0, dtype=str)
-
-                # Remove empty rows and rows with all zero traffic values
-                data.dropna(how='all', inplace=True)
-                data = data[(data != '0').all(axis=1)]
-
-                # Ensure traffic values are numeric
-                data = data.apply(pd.to_numeric, errors='coerce')
-                data.dropna(inplace=True)
-
-                # Display the data with original month format
-                st.write("### Original Data")
-                st.dataframe(data.T, height=200)
-
-                # Convert index to datetime for forecasting
-                data.index = pd.to_datetime(data.index, format='%b-%y')
-
-                # Forecast period selection
-                st.write("### Select Forecast Period")
-                forecast_period = st.radio("Choose the forecast duration:", options=[6, 12], index=0)
-
-                # Confidence interval selection
-                st.write("### Select Confidence Interval")
-                confidence_interval = st.slider("Choose the confidence interval (%):", min_value=50, max_value=99, value=80)
-
+                # Read and process the uploaded data
+                data = pd.read_csv(uploaded_file, index_col=0)
+                
+                # Transform the data for horizontal display
+                displayed_data = data.T  # Transpose the dataframe
+                st.write("Historical Traffic Data")
+                st.dataframe(displayed_data, height=150)  # Set fixed height for better display
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    forecast_period = st.radio("Forecast Period (Months)", [6, 12])
+                with col2:
+                    confidence_interval = st.slider("Prediction Accuracy (%)", 50, 99, 80)
+                
                 forecast, model = forecast_traffic(data, forecast_period, confidence_interval)
-
-                # Display forecast data
-                st.write(f"### Forecasted SEO Traffic for Next {forecast_period} Months")
-                forecast_table = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
-                forecast_table.columns = ['Date', 'Forecasted Traffic', 'Optimistic Scenario', 'Pessimistic Scenario']
-                st.dataframe(forecast_table, height=300)
-
-                # Provide download option for forecast data
-                csv_data = convert_df_to_csv(forecast_table)
-                st.download_button(label="Download Forecast as CSV",
-                                   data=csv_data,
-                                   file_name='seo_traffic_forecast.csv',
-                                   mime='text/csv')
-
-                # Visualization enhancements
-                st.write("### Seasonal Decomposition of Forecast")
-                seasonal_fig = custom_seasonal_plot(model, forecast)
-                st.plotly_chart(seasonal_fig, use_container_width=True)
-
+                
+                st.subheader("Forecast Results")
+                results = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']][-forecast_period:]
+                
+                # Format the date without time
+                results['ds'] = pd.to_datetime(results['ds']).dt.strftime('%Y-%m')
+                results.columns = ['Date', 'Expected Traffic', 'Conservative Estimate', 'Best Case Scenario']
+                
+                # Display results in a clean format
+                st.dataframe(results.set_index('Date'))
+                
+                st.plotly_chart(plot_forecast(model, forecast), use_container_width=True)
+                
+                # Update the CSV export to use the cleaned date format
+                csv = results.to_csv(index=False).encode('utf-8')
+                st.download_button("Download Forecast", csv, "forecast.csv", "text/csv")
+                
             except Exception as e:
                 st.error(f"Error: {e}")
-
+    
     elif menu == "Documentation":
-        st.write("## Documentation and Education")
-        st.markdown(
-            """
-            ### How to Use the Tool:
-            1. **Upload Your Data**: Upload a CSV or Excel file containing two columns:
-               - The first column should represent the month (e.g., `Jan-24`).
-               - The second column should represent the traffic values.
-            2. **Configure Settings**:
-               - Select the forecast period (6 or 12 months).
-               - Adjust the confidence interval to define uncertainty levels.
-            3. **View Results**:
-               - The tool provides a forecasted traffic table and seasonal decomposition plots.
-               - Download the results as a CSV file.
-
-            ### Key Features:
-            - Handles missing values and outliers automatically.
-            - Customizable confidence intervals.
-            - Interactive seasonal trend analysis.
-
-            ### About Prophet:
-            Prophet is an open-source forecasting tool developed by Facebook. It models trends, seasonality, and holidays to make accurate forecasts for time-series data with missing values or outliers.
-
-            """
-        )
+        st.markdown("""
+        ## How to Use
+        1. Upload CSV with months and traffic
+        2. Select forecast period
+        3. Adjust prediction accuracy
+        4. Download results
+        """)
 
 if __name__ == "__main__":
     main()
