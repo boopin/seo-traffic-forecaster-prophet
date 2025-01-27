@@ -19,7 +19,96 @@ def forecast_traffic(data, forecast_period, confidence_interval):
     forecast[['yhat', 'yhat_lower', 'yhat_upper']] = forecast[['yhat', 'yhat_lower', 'yhat_upper']].round(0)
     return forecast, model
 
-[Previous plot_forecast function remains the same]
+def plot_forecast(model, forecast):
+    fig = go.Figure()
+    
+    # Add filled area between Conservative and Best Case
+    fig.add_trace(go.Scatter(
+        x=forecast['ds'],
+        y=forecast['yhat_upper'],
+        fill=None,
+        mode='lines',
+        line_color='rgba(0,100,255,0)',
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=forecast['ds'],
+        y=forecast['yhat_lower'],
+        fill='tonexty',
+        mode='lines',
+        line_color='rgba(0,100,255,0)',
+        fillcolor='rgba(0,100,255,0.1)',
+        name='Prediction Range',
+        hoverinfo='skip'
+    ))
+    
+    # Add main forecast line
+    fig.add_trace(go.Scatter(
+        x=forecast['ds'],
+        y=forecast['yhat'],
+        name='Expected Traffic',
+        line=dict(color='rgb(0,100,255)', width=3),
+        hovertemplate='<b>Date</b>: %{x|%B %Y}<br>' +
+                      '<b>Expected Traffic</b>: %{y:,.0f}<br><extra></extra>'
+    ))
+    
+    # Add upper and lower bounds with custom hover
+    fig.add_trace(go.Scatter(
+        x=forecast['ds'],
+        y=forecast['yhat_upper'],
+        name='Best Case Scenario',
+        line=dict(color='rgba(0,100,255,0.5)', dash='dash'),
+        hovertemplate='<b>Date</b>: %{x|%B %Y}<br>' +
+                      '<b>Best Case</b>: %{y:,.0f}<br><extra></extra>'
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=forecast['ds'],
+        y=forecast['yhat_lower'],
+        name='Conservative Estimate',
+        line=dict(color='rgba(0,100,255,0.5)', dash='dash'),
+        hovertemplate='<b>Date</b>: %{x|%B %Y}<br>' +
+                      '<b>Conservative</b>: %{y:,.0f}<br><extra></extra>'
+    ))
+    
+    # Update layout with better styling
+    fig.update_layout(
+        title={
+            'text': 'Traffic Forecast',
+            'y':0.95,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top',
+            'font': dict(size=24)
+        },
+        xaxis_title='Date',
+        yaxis_title='Traffic',
+        hovermode='x unified',
+        plot_bgcolor='white',
+        xaxis=dict(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='rgba(128,128,128,0.2)',
+            zeroline=False
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='rgba(128,128,128,0.2)',
+            zeroline=False
+        ),
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01,
+            bgcolor='rgba(255,255,255,0.8)'
+        )
+    )
+    
+    return fig
 
 def main():
     st.set_page_config(page_title="ForecastEdge", layout="wide")
